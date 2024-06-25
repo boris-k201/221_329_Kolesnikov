@@ -26,16 +26,27 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     previousHash = QByteArray();
 }
 
-void MainWindow::checkbox_checked(bool checked) {
-    QCheckBox* checkbox = static_cast<QCheckBox*>(sender());
-    int index = checkboxes.indexOf(checkbox);
+void MainWindow::setCell(int index) {
+    QCheckBox* checkbox = checkboxes[index];
     checkbox->setCheckable(false);
     if (counter % 2 == 0)
         checkbox->setStyleSheet("background-color: #FF0000");
     else
         checkbox->setStyleSheet("background-color: #00FF00");
+}
+
+void MainWindow::checkbox_checked(bool checked) {
+    if (!checked)
+        return;
+    QCheckBox* checkbox = static_cast<QCheckBox*>(sender());
+    int index = checkboxes.indexOf(checkbox);
+    setCell(index);
     counter++;
     saveMove(index);
+}
+QByteArray MainWindow::getHash(int i, int j, QString time, QByteArray hash) {
+    return QCryptographicHash::hash(
+        (QString::number(i)+QString::number(j)+time).toUtf8()+hash, QCryptographicHash::Sha256);
 }
 
 void MainWindow::saveMove(int index) {
@@ -44,8 +55,7 @@ void MainWindow::saveMove(int index) {
     std::tm* tm_c = std::localtime(&t_c);
     char buffer[20];
     std::strftime(buffer, sizeof(buffer), "%Y.%m.%d_%H:%M:%S", tm_c);
-    previousHash = QCryptographicHash::hash((QString::number(index / 4)+QString::number(index % 4)+QString(buffer)).toUtf8()+previousHash, QCryptographicHash::Sha256);
-    QByteArray dataTogether = (QString::number(index / 4)+QString::number(index % 4)+QString(buffer)).toUtf8()+previousHash.toHex();
+    previousHash = getHash(index / 4, index % 4, QString(buffer), previousHash);
     QFile file("record.txt");
     if (file.open(QIODevice::WriteOnly | QIODevice::Append)) {
         QTextStream out(&file);
@@ -53,7 +63,6 @@ void MainWindow::saveMove(int index) {
         out << index % 4 << "\n";
         out << buffer << "\n";
         out << previousHash.toHex() << "\n";
-        qDebug() << dataTogether << dataTogether.size();
     }
 }
 
@@ -63,34 +72,28 @@ void MainWindow::readFile() {
         clear();
         QTextStream in(&file);
         QByteArray prevHash = QByteArray();
-        int move = 0;
+        counter = 0;
         while (!in.atEnd()) {
             int i = in.readLine().toInt();
             int j = in.readLine().toInt();
             QString time = in.readLine();
             QByteArray hash = QByteArray::fromHex(in.readLine().toUtf8());
             QByteArray dataTogether = (QString::number(i)+QString::number(j)+time).toUtf8()+prevHash;
-            QByteArray newhash = QCryptographicHash::hash((QString::number(i)+QString::number(j)+time).toUtf8()+prevHash, QCryptographicHash::Sha256);
+            QByteArray newhash = getHash(i, j, time, prevHash);
             prevHash = newhash;
-            qDebug() << hash << newhash;
+            qDebug() << hash.toHex() << newhash.toHex();
             if (hash != newhash) {
                 QMessageBox messageBox;
                 messageBox.critical(0,"Error","Хеши ходов не совпадают");
                 messageBox.setFixedSize(500,200);
                 messageBox.show();
+                clear();
                 return;
-            } else {
-                int index = i * 4 + j;
-                checkboxes[index]->setChecked(true);
-                checkboxes[index]->setCheckable(false);
-                if (move % 2 == 0)
-                    checkboxes[index]->setStyleSheet("background-color: #FF0000");
-                else
-                    checkboxes[index]->setStyleSheet("background-color: #00FF00");
-
-            }
-            move++;
+            } else
+                setCell(i * 4 + j);
+            counter++;
         }
+        previousHash = prevHash;
     }
 }
 
@@ -107,6 +110,7 @@ void MainWindow::clear() {
     for (int i = 0; i < states.size(); i++)
         states[i] = 0;
     counter = 0;
+    previousHash = QByteArray();
 }
 
 void MainWindow::on_clear_clicked() {
@@ -116,4 +120,3 @@ void MainWindow::on_clear_clicked() {
 void MainWindow::on_load_clicked() {
     readFile();
 }
-

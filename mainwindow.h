@@ -33,6 +33,8 @@ private slots:
 
 private:
     void checkbox_checked(bool checked);
+    void setCell(int index);
+    QByteArray getHash(int i, int j, QString time, QByteArray hash);
     void clear();
     void saveMove(int index);
     void readFile();
