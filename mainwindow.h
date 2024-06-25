@@ -35,6 +35,8 @@ private slots:
 
     void on_load_clicked();
 
+    void on_lineEdit_returnPressed();
+
 private:
     /// Вызывается при нажатии на кнопку
     void checkbox_checked(bool checked);
@@ -55,6 +57,8 @@ private:
     /// Показывает всплывающее окно об ошибке
     void errorMessage(QString errorMessage);
 
+    void checkPin();
+
     /// Шифрует данные и возвращает код ошибки
     int encryptByteArray(QByteArray &inputBytes, QByteArray &outputBytes);
     /// Расшифрует данные и возвращает код ошибки
@@ -64,6 +68,7 @@ private:
     QList<QCheckBox*> checkboxes;
     QList<int> states;
     QByteArray previousHash;
+    QByteArray pincode;
     int counter;
 };
 #endif // MAINWINDOW_H

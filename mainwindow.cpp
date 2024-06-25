@@ -24,6 +24,24 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
         connect(checkboxes[i], &QCheckBox::clicked, this, &MainWindow::checkbox_checked);
     counter = 0;
     previousHash = QByteArray();
+    ui->stackedWidget->setCurrentIndex(1);
+}
+
+void MainWindow::checkPin() {
+    QFile file("pincode_hash.txt");
+    if (!file.open(QIODevice::ReadOnly)) {
+        errorMessage("Произошла ошибка при проверке пароля");
+        return;
+    }
+    QString pass = ui->lineEdit->text();
+    QByteArray passHash = QCryptographicHash::hash(pass.toUtf8(), QCryptographicHash::Sha256);
+    QByteArray passHashStored = QByteArray::fromHex(file.readAll());
+    if (passHash != passHashStored) {
+        qDebug() << passHash.toHex() << passHashStored.toHex();
+        errorMessage("Введен неверный пин-код");
+        return;
+    }
+    ui->stackedWidget->setCurrentIndex(0);
 }
 
 void MainWindow::errorMessage(QString errorMessage) {
@@ -64,6 +82,7 @@ void MainWindow::saveMove(int index) {
     std::strftime(buffer, sizeof(buffer), "%Y.%m.%d_%H:%M:%S", tm_c);
     previousHash = getHash(index / 4, index % 4, QString(buffer), previousHash);
     QByteArray data = readFile();
+    qDebug() << QString(buffer).size();
     qDebug() << "before" << data;
     data.append((QString::number(index/4)+"\n").toUtf8());
     data.append((QString::number(index%4)+"\n").toUtf8());
@@ -234,3 +253,8 @@ int MainWindow::decryptByteArray(QByteArray &inputBytes, QByteArray &outputBytes
     EVP_CIPHER_CTX_free(ctx);
     return 0;
 }
+
+void MainWindow::on_lineEdit_returnPressed() {
+    checkPin();
+}
+
