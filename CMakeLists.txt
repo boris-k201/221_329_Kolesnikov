@@ -66,6 +66,17 @@ install(TARGETS 221_329_Kolesnikov
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
+target_include_directories (
+    221_329_Kolesnikov
+    PRIVATE
+    /usr/include/openssl
+)
+target_link_libraries(
+    221_329_Kolesnikov
+    PRIVATE
+    /usr/lib/x86_64-linux-gnu/libcrypto.so
+)
+
 if(QT_VERSION_MAJOR EQUAL 6)
     qt_finalize_executable(221_329_Kolesnikov)
 endif()

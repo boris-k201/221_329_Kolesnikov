@@ -12,6 +12,8 @@
 #include <QTextStream>
 #include <QMessageBox>
 
+#include <openssl/evp.h>
+
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;
@@ -38,6 +40,9 @@ private:
     void clear();
     void saveMove(int index);
     void readFile();
+
+    int encryptByteArray(QByteArray &inputBytes, QByteArray &outputBytes);
+    int decryptByteArray(QByteArray &inputBytes, QByteArray &outputBytes);
 
     Ui::MainWindow *ui;
     QList<QCheckBox*> checkboxes;

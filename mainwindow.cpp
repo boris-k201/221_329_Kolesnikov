@@ -120,3 +120,78 @@ void MainWindow::on_clear_clicked() {
 void MainWindow::on_load_clicked() {
     readFile();
 }
+
+int MainWindow::encryptByteArray(QByteArray &inputBytes, QByteArray &outputBytes) {
+    QByteArray key_qba = QByteArray::fromHex("b48d1d3c947c425b07b3de8bf6d96e84b48d1d3c947c425b07b3de8bf6d96e84");
+    QByteArray iv_qba = QByteArray::fromHex("b48d1d3c947c425b07b3de8bf6d96e84");
+    QDataStream decryptedStream(inputBytes);
+    QDataStream encryptedStream(&outputBytes, QIODevice::ReadWrite);
+    const int bufferLen = 256;
+    int encryptedLen, decryptedLen;
+    unsigned char key[32], iv[16];
+    unsigned char encryptedBuffer[bufferLen] = {0}, decryptedBuffer[bufferLen] = {0};
+
+    memcpy(key, key_qba.data(), 32);
+    memcpy(iv, iv_qba.data(), 16);
+    iv_qba.clear();
+
+    EVP_CIPHER_CTX *ctx;
+    ctx = EVP_CIPHER_CTX_new();
+    if (!EVP_EncryptInit_ex2(ctx, EVP_aes_256_cbc(), key, iv, NULL)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return 1;
+    }
+    do {
+        decryptedLen = decryptedStream.readRawData(reinterpret_cast<char*>(decryptedBuffer), bufferLen);
+        if (!EVP_EncryptUpdate(ctx, encryptedBuffer, &encryptedLen, decryptedBuffer, decryptedLen)) {
+            EVP_CIPHER_CTX_free(ctx);
+            return 2;
+        }
+        encryptedStream.writeRawData(reinterpret_cast<char*>(encryptedBuffer), encryptedLen);
+    } while (decryptedLen > 0);
+    if (!EVP_EncryptFinal_ex(ctx, encryptedBuffer, &encryptedLen)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return 3;
+    }
+    encryptedStream.writeRawData(reinterpret_cast<char*>(encryptedBuffer), encryptedLen);
+    EVP_CIPHER_CTX_free(ctx);
+    return 0;
+}
+
+int MainWindow::decryptByteArray(QByteArray &inputBytes, QByteArray &outputBytes) {
+    QByteArray key_qba = QByteArray::fromHex("b48d1d3c947c425b07b3de8bf6d96e84b48d1d3c947c425b07b3de8bf6d96e84");
+    QByteArray iv_qba = QByteArray::fromHex("b48d1d3c947c425b07b3de8bf6d96e84");
+    QDataStream encryptedStream(inputBytes);
+    QDataStream decryptedStream(&outputBytes, QIODevice::ReadWrite);
+    const int bufferLen = 256;
+    int encryptedLen, decryptedLen, tmplen;
+    unsigned char key[32], iv[16];
+    unsigned char encryptedBuffer[bufferLen] = {0}, decryptedBuffer[bufferLen] = {0};
+
+    memcpy(key, key_qba.data(), 32);
+    memcpy(iv, iv_qba.data(), 16);
+    iv_qba.clear();
+
+    EVP_CIPHER_CTX *ctx;
+    ctx = EVP_CIPHER_CTX_new();
+    if (!EVP_DecryptInit_ex2(ctx, EVP_aes_256_cbc(), key, iv, NULL)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return 1;
+    }
+    do {
+        encryptedLen = encryptedStream.readRawData(reinterpret_cast<char*>(encryptedBuffer), bufferLen);
+        if (!EVP_DecryptUpdate(ctx, decryptedBuffer, &decryptedLen, encryptedBuffer, encryptedLen)) {
+            EVP_CIPHER_CTX_free(ctx);
+            return 2;
+        }
+        decryptedStream.writeRawData(reinterpret_cast<char*>(decryptedBuffer), decryptedLen);
+    } while (encryptedLen > 0);
+
+    if (!EVP_DecryptFinal_ex(ctx, decryptedBuffer, &decryptedLen)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return 3;
+    }
+    decryptedStream.writeRawData(reinterpret_cast<char*>(decryptedBuffer), decryptedLen);
+    EVP_CIPHER_CTX_free(ctx);
+    return 0;
+}
