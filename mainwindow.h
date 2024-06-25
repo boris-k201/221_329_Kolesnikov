@@ -39,7 +39,9 @@ private:
     QByteArray getHash(int i, int j, QString time, QByteArray hash);
     void clear();
     void saveMove(int index);
-    void readFile();
+    QByteArray readFile();
+    void loadFile(QByteArray& unencryptedData);
+    void saveFile(QByteArray& encryptedData);
 
     int encryptByteArray(QByteArray &inputBytes, QByteArray &outputBytes);
     int decryptByteArray(QByteArray &inputBytes, QByteArray &outputBytes);

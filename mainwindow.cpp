@@ -56,45 +56,91 @@ void MainWindow::saveMove(int index) {
     char buffer[20];
     std::strftime(buffer, sizeof(buffer), "%Y.%m.%d_%H:%M:%S", tm_c);
     previousHash = getHash(index / 4, index % 4, QString(buffer), previousHash);
+    QByteArray data = readFile();
+    qDebug() << "before" << data;
+    data.append((QString::number(index/4)+"\n").toUtf8());
+    data.append((QString::number(index%4)+"\n").toUtf8());
+    data.append((QString(buffer)+"\n").toUtf8());
+    data.append((QString(previousHash.toHex())+"\n").toUtf8());
+    qDebug() << "after" << data;
+    saveFile(data);
+}
+
+QByteArray MainWindow::readFile() {
     QFile file("record.txt");
-    if (file.open(QIODevice::WriteOnly | QIODevice::Append)) {
-        QTextStream out(&file);
-        out << index / 4 << "\n";
-        out << index % 4 << "\n";
-        out << buffer << "\n";
-        out << previousHash.toHex() << "\n";
+    if (file.open(QIODevice::ReadOnly)) {
+        QByteArray hexEncData = file.readAll();
+        QByteArray encData = QByteArray::fromHex(hexEncData);
+        QByteArray unEncData;
+        int errorcode = decryptByteArray(encData, unEncData);
+        if (errorcode) {
+            QMessageBox messageBox;
+            messageBox.critical(0, "Error", "Произошла ошибка при расшифровке файла");
+            messageBox.setFixedSize(500,200);
+            messageBox.show();
+            return QByteArray();
+        }
+        return unEncData;
+    }
+    QMessageBox messageBox;
+    messageBox.critical(0, "Error", "Произошла ошибка при чтении файла");
+    messageBox.setFixedSize(500,200);
+    messageBox.show();
+    return QByteArray();
+}
+
+void MainWindow::loadFile(QByteArray &decryptedData) {
+    QTextStream in(&decryptedData);
+    QByteArray prevHash = QByteArray();
+    while (!in.atEnd()) {
+        int i = in.readLine().toInt();
+        int j = in.readLine().toInt();
+        QString time = in.readLine();
+        QByteArray hash = QByteArray::fromHex(in.readLine().toUtf8());
+        QByteArray newhash = getHash(i, j, time, prevHash);
+        prevHash = newhash;
+        if (hash != newhash) {
+            QMessageBox messageBox;
+            messageBox.critical(0,"Error","Хеши ходов не совпадают");
+            messageBox.setFixedSize(500,200);
+            messageBox.show();
+            clear();
+            return;
+        }
+    }
+    in.seek(0);
+    clear();
+    while (!in.atEnd()) {
+        int i = in.readLine().toInt();
+        int j = in.readLine().toInt();
+        QString time = in.readLine();
+        previousHash = QByteArray::fromHex(in.readLine().toUtf8());
+        setCell(i*4+j);
+        counter++;
     }
 }
 
-void MainWindow::readFile() {
-    QFile file("record.txt");
-    if (file.open(QIODevice::ReadOnly)) {
-        clear();
-        QTextStream in(&file);
-        QByteArray prevHash = QByteArray();
-        counter = 0;
-        while (!in.atEnd()) {
-            int i = in.readLine().toInt();
-            int j = in.readLine().toInt();
-            QString time = in.readLine();
-            QByteArray hash = QByteArray::fromHex(in.readLine().toUtf8());
-            QByteArray dataTogether = (QString::number(i)+QString::number(j)+time).toUtf8()+prevHash;
-            QByteArray newhash = getHash(i, j, time, prevHash);
-            prevHash = newhash;
-            qDebug() << hash.toHex() << newhash.toHex();
-            if (hash != newhash) {
-                QMessageBox messageBox;
-                messageBox.critical(0,"Error","Хеши ходов не совпадают");
-                messageBox.setFixedSize(500,200);
-                messageBox.show();
-                clear();
-                return;
-            } else
-                setCell(i * 4 + j);
-            counter++;
-        }
-        previousHash = prevHash;
+void MainWindow::saveFile(QByteArray &unencData) {
+    QByteArray encData;
+    int errorcode = encryptByteArray(unencData, encData);
+    if (errorcode) {
+        QMessageBox messageBox;
+        messageBox.critical(0,"Error","Произошла ошибка при сохранении файла");
+        messageBox.setFixedSize(500,200);
+        messageBox.show();
+        return;
     }
+    QByteArray hexEncData = encData.toHex();
+    QFile file("record.txt");
+    if (!file.open(QIODevice::WriteOnly)) {
+        QMessageBox messageBox;
+        messageBox.critical(0,"Error","Произошла ошибка при сохранении файла");
+        messageBox.setFixedSize(500,200);
+        messageBox.show();
+        return;
+    }
+    file.write(hexEncData);
+    file.close();
 }
 
 MainWindow::~MainWindow() {
@@ -118,7 +164,8 @@ void MainWindow::on_clear_clicked() {
 }
 
 void MainWindow::on_load_clicked() {
-    readFile();
+    QByteArray data = readFile();
+    loadFile(data);
 }
 
 int MainWindow::encryptByteArray(QByteArray &inputBytes, QByteArray &outputBytes) {
