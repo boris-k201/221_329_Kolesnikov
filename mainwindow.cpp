@@ -26,6 +26,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     previousHash = QByteArray();
 }
 
+void MainWindow::errorMessage(QString errorMessage) {
+    QMessageBox messageBox;
+    messageBox.critical(0, "Error", errorMessage);
+    messageBox.setFixedSize(500,200);
+    messageBox.show();
+}
+
 void MainWindow::setCell(int index) {
     QCheckBox* checkbox = checkboxes[index];
     checkbox->setCheckable(false);
@@ -74,18 +81,13 @@ QByteArray MainWindow::readFile() {
         QByteArray unEncData;
         int errorcode = decryptByteArray(encData, unEncData);
         if (errorcode) {
-            QMessageBox messageBox;
-            messageBox.critical(0, "Error", "Произошла ошибка при расшифровке файла");
-            messageBox.setFixedSize(500,200);
-            messageBox.show();
+            errorMessage("Произошла ошибка при расшифровке файла");
             return QByteArray();
         }
         return unEncData;
     }
     QMessageBox messageBox;
-    messageBox.critical(0, "Error", "Произошла ошибка при чтении файла");
-    messageBox.setFixedSize(500,200);
-    messageBox.show();
+    errorMessage("Произошла ошибка при чтении файла");
     return QByteArray();
 }
 
@@ -100,11 +102,7 @@ void MainWindow::loadFile(QByteArray &decryptedData) {
         QByteArray newhash = getHash(i, j, time, prevHash);
         prevHash = newhash;
         if (hash != newhash) {
-            QMessageBox messageBox;
-            messageBox.critical(0,"Error","Хеши ходов не совпадают");
-            messageBox.setFixedSize(500,200);
-            messageBox.show();
-            clear();
+            errorMessage("Хеши ходов не совпадают");
             return;
         }
     }
@@ -124,19 +122,13 @@ void MainWindow::saveFile(QByteArray &unencData) {
     QByteArray encData;
     int errorcode = encryptByteArray(unencData, encData);
     if (errorcode) {
-        QMessageBox messageBox;
-        messageBox.critical(0,"Error","Произошла ошибка при сохранении файла");
-        messageBox.setFixedSize(500,200);
-        messageBox.show();
+        errorMessage("Произошла ошибка при сохранении файла");
         return;
     }
     QByteArray hexEncData = encData.toHex();
     QFile file("record.txt");
     if (!file.open(QIODevice::WriteOnly)) {
-        QMessageBox messageBox;
-        messageBox.critical(0,"Error","Произошла ошибка при сохранении файла");
-        messageBox.setFixedSize(500,200);
-        messageBox.show();
+        errorMessage("Произошла ошибка при сохранении файла");
         return;
     }
     file.write(hexEncData);
